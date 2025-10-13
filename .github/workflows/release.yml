@@ -10,6 +10,11 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
+    # ✅ Prevent multiple concurrent release jobs from running
+    concurrency:
+      group: release-dev
+      cancel-in-progress: false
+
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BRANCH: main # or derive dynamically if needed
@@ -144,6 +149,7 @@ jobs:
         shell: bash
 
       - name: Create pull request
+        id: create-pull-request
         if: steps.proceed-versioning.conclusion == 'success'
         uses: peter-evans/create-pull-request@v7
         with:
@@ -152,3 +158,11 @@ jobs:
           body: 'Automated version bump and changelog update.'
           base: ${{ env.BRANCH }}
           labels: deploy
+
+      - name: Enable auto-merge
+        if: steps.create-pull-request.outputs.pull-request-number
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ inputs.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
+          merge-method: squash
