@@ -164,6 +164,12 @@ jobs:
           base: ${{ env.BRANCH }}
           labels: deploy
 
+      - name: Auto approve
+        if: steps.create-pull-request.outputs.pull-request-operation == 'created'
+        run: gh pr review --approve "${{ steps.create-pull-request.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Enable auto-merge
         if: steps.create-pull-request.outputs.pull-request-number
         uses: peter-evans/enable-pull-request-automerge@v3
@@ -177,3 +183,9 @@ jobs:
         with:
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
           token: ${{ secrets.WRITE }}
+
+      - name: Auto approve
+        if: steps.create-pull-request.outputs.pull-request-operation == 'created'
+        run: gh pr review --approve "${{ steps.create-pull-request.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
