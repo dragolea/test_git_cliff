@@ -98,6 +98,7 @@ jobs:
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
       - name: Generate changelog (partial)
+        id: git-cliff-partial
         if: steps.proceed-versioning.conclusion == 'success'
         uses: orhun/git-cliff-action@v4
         with:
@@ -108,8 +109,9 @@ jobs:
         if: steps.proceed-versioning.conclusion == 'success'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.package-version.outputs.current-version }}
-          body_path: CHANGELOG_PARTIAL.md
+          body: ${{ steps.git-cliff-partial.outputs.content }}
+          tag_name: ${{ steps.git-cliff-partial.outputs.version }}
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
