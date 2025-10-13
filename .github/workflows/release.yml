@@ -131,6 +131,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Remove partial changelog
+        if: steps.proceed-versioning.conclusion == 'success'
+        run: rm -f CHANGELOG_PARTIAL.md
+        shell: bash
+
       - name: Generate full changelog
         if: steps.proceed-versioning.conclusion == 'success'
         uses: orhun/git-cliff-action@v4
