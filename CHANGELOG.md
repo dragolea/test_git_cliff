@@ -12,6 +12,8 @@
 - *(bla)* Blaaaa
 - Bump version & update CHANGELOG.md
 - Bump version & update CHANGELOG.md
+- Bump version & update CHANGELOG.md
+- *(readme)* Updated now at 10:36
 ## [1.0.4] - 2025-10-13
 
 ### ⚙️ Miscellaneous Tasks
