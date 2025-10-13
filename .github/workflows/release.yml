@@ -107,7 +107,7 @@ jobs:
         if: steps.proceed-versioning.conclusion == 'success'
         uses: anothrNick/github-tag-action@v1
         env:
-          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: false
           CUSTOM_TAG: ${{ steps.package-version.outputs.current-version}}
           BRANCH_HISTORY: full
@@ -163,6 +163,6 @@ jobs:
         if: steps.create-pull-request.outputs.pull-request-number
         uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          token: ${{ inputs.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
           merge-method: squash
