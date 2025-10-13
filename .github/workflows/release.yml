@@ -3,64 +3,109 @@ name: Release on PR merge
 on:
   pull_request:
     types: [closed]
-    branches: [main] # adjust as needed
+    branches: [main] # change to your target branch if needed
 
 jobs:
   release:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BRANCH: main # or derive dynamically if needed
+
     steps:
+      - name: Check labels to proceed versioning
+        id: proceed-versioning
+        if: >
+          contains(github.event.pull_request.labels.*.name, 'version: patch') ||
+          contains(github.event.pull_request.labels.*.name, 'version: minor') ||
+          contains(github.event.pull_request.labels.*.name, 'version: major')
+        run: |
+          echo "Labels found for versioning. Proceeding with version bump."
+          echo "Proceed versioning ..."
+        shell: bash
+
+      - name: Pull request merged
+        if: steps.proceed-versioning.conclusion == 'success'
+        run: echo "Pull request was merged."
+        shell: bash
+
       - name: Checkout code
+        if: steps.proceed-versioning.conclusion == 'success'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
+        if: steps.proceed-versioning.conclusion == 'success'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install sync-mta-version
+        if: steps.proceed-versioning.conclusion == 'success'
         run: npm install -g @dxfrontier/sync-mta-version
+        shell: bash
 
       - name: Determine version bump type
         id: version-bump-type
+        if: steps.proceed-versioning.conclusion == 'success'
+        env:
+          IS_PATCH_FOUND: "${{ contains(github.event.pull_request.labels.*.name, 'version: patch') }}"
+          IS_MINOR_FOUND: "${{ contains(github.event.pull_request.labels.*.name, 'version: minor') }}"
+          IS_MAJOR_FOUND: "${{ contains(github.event.pull_request.labels.*.name, 'version: major') }}"
         run: |
-          LABELS=$(echo "${{ toJson(github.event.pull_request.labels) }}" | jq -r '.[].name')
-          echo "Found labels: $LABELS"
-
-          if echo "$LABELS" | grep -q "version: major"; then
-            echo "VERSION_BUMP=major" >> $GITHUB_ENV
-          elif echo "$LABELS" | grep -q "version: minor"; then
-            echo "VERSION_BUMP=minor" >> $GITHUB_ENV
-          elif echo "$LABELS" | grep -q "version: patch"; then
+          if [ "${IS_PATCH_FOUND}" == "true" ]; then
             echo "VERSION_BUMP=patch" >> $GITHUB_ENV
+            echo "Version: patch"
+          elif [ "${IS_MINOR_FOUND}" == "true" ]; then
+            echo "VERSION_BUMP=minor" >> $GITHUB_ENV
+            echo "Version: minor"
+          elif [ "${IS_MAJOR_FOUND}" == "true" ]; then
+            echo "VERSION_BUMP=major" >> $GITHUB_ENV
+            echo "Version: major"
           else
-            echo "No version label found. Exiting..."
             exit 0
           fi
+        shell: bash
 
-      - name: Bump npm version
+      - name: Bump version to package.json
+        if: steps.proceed-versioning.conclusion == 'success'
         run: npm version ${{ env.VERSION_BUMP }} --no-git-tag-version
+        shell: bash
 
-      - name: Sync versions (mta.yaml, manifests)
+      - name: Apply version bump to package.json, /app/*/package.json, /app/*/webapp/manifest.json
+        if: steps.proceed-versioning.conclusion == 'success'
         run: |
           if [ -f "mta.yaml" ]; then
-            sync-mta-version -f mta.yaml -u /app
+            echo "mta.yaml found."
+            if [ -d "app" ]; then
+              echo "Applying version bump to package.json and manifest.json files in app."
+              sync-mta-version -f mta.yaml -u /app
+            else
+              echo "Applying version bump to root package.json"
+              sync-mta-version -f mta.yaml
+            fi
+          else
+            echo "Skipping version bump. mta.yaml is missing."
           fi
+        shell: bash
 
-      - name: Get current version
+      - name: Get version
         id: package-version
+        if: steps.proceed-versioning.conclusion == 'success'
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
-      - name: Generate partial changelog
+      - name: Generate changelog (partial)
+        if: steps.proceed-versioning.conclusion == 'success'
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
           args: -vv --latest --strip header -o CHANGELOG_PARTIAL.md
 
-      - name: Create GitHub Release
+      - name: Create GitHub release
+        if: steps.proceed-versioning.conclusion == 'success'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.package-version.outputs.current-version }}
@@ -69,17 +114,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate full changelog
+        if: steps.proceed-versioning.conclusion == 'success'
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
           args: --verbose -o CHANGELOG.md
 
       - name: Commit version bump and changelog
+        if: steps.proceed-versioning.conclusion == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package*.json CHANGELOG.md mta.yaml app/**/manifest.json || true
           git commit -m "ci: bump version & update changelog" || echo "No changes to commit"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git push origin HEAD:${{ env.BRANCH }}
+        shell: bash
+
+      - name: Create pull request
+        if: steps.proceed-versioning.conclusion == 'success'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: feature/version-bump
+          commit-message: 'ci: bump version & update CHANGELOG.md'
+          body: 'Automated version bump and changelog update.'
+          base: ${{ env.BRANCH }}
+          labels: deploy
