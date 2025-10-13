@@ -170,3 +170,10 @@ jobs:
         with:
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
           token: ${{ secrets.WRITE }}
+
+      - name: Enable auto-merge
+        if: steps.create-pull-request.outputs.pull-request-number
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
+          token: ${{ secrets.WRITE }}
