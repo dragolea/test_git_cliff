@@ -1,19 +1,85 @@
-name: Release
+name: Release on PR merge
+
 on:
   pull_request:
-    branches:
-      - main
-    types:
-      - closed
+    types: [closed]
+    branches: [main] # adjust as needed
+
 jobs:
   release:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+
     steps:
-      - name: Bump version and create release
-        uses: dxfrontier/gh-action-release@main
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install sync-mta-version
+        run: npm install -g @dxfrontier/sync-mta-version
+
+      - name: Determine version bump type
+        id: version-bump-type
+        run: |
+          LABELS=$(echo "${{ toJson(github.event.pull_request.labels) }}" | jq -r '.[].name')
+          echo "Found labels: $LABELS"
+
+          if echo "$LABELS" | grep -q "version: major"; then
+            echo "VERSION_BUMP=major" >> $GITHUB_ENV
+          elif echo "$LABELS" | grep -q "version: minor"; then
+            echo "VERSION_BUMP=minor" >> $GITHUB_ENV
+          elif echo "$LABELS" | grep -q "version: patch"; then
+            echo "VERSION_BUMP=patch" >> $GITHUB_ENV
+          else
+            echo "No version label found. Exiting..."
+            exit 0
+          fi
+
+      - name: Bump npm version
+        run: npm version ${{ env.VERSION_BUMP }} --no-git-tag-version
+
+      - name: Sync versions (mta.yaml, manifests)
+        run: |
+          if [ -f "mta.yaml" ]; then
+            sync-mta-version -f mta.yaml -u /app
+          fi
+
+      - name: Get current version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@v1.3.1
+
+      - name: Generate partial changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: -vv --latest --strip header -o CHANGELOG_PARTIAL.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package-version.outputs.current-version }}
+          body_path: CHANGELOG_PARTIAL.md
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: main
+
+      - name: Generate full changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --verbose -o CHANGELOG.md
+
+      - name: Commit version bump and changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package*.json CHANGELOG.md mta.yaml app/**/manifest.json || true
+          git commit -m "ci: bump version & update changelog" || echo "No changes to commit"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
