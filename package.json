@@ -1,6 +1,6 @@
 {
   "name": "test_git_cliff",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "added something",
   "main": "index.js",
   "scripts": {
