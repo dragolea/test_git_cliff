@@ -1,6 +1,6 @@
-## [1.0.2] - 2025-10-13
+## [1.0.3] - 2025-10-13
 
 ### ⚙️ Miscellaneous Tasks
 
-- Bump version & update CHANGELOG.md (#6)
-- *(readme)* Updated now bro
+- *(readme)* Updated now again bro second time
+- Bump version & update CHANGELOG.md (#9)
