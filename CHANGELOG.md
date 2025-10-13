@@ -1,3 +1,12 @@
+## [1.0.6] - 2025-10-13
+
+### 🚀 Features
+
+- *(readme)* Updated 1
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version & update CHANGELOG.md (#14)
 ## [1.0.5] - 2025-10-13
 
 ### 🚀 Features
