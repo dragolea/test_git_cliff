@@ -106,6 +106,7 @@ jobs:
           args: -vv --latest --strip header -o CHANGELOG_PARTIAL.md
 
       - name: Create GitHub release
+        id: create-release
         if: steps.proceed-versioning.conclusion == 'success'
         uses: softprops/action-gh-release@v2
         with:
@@ -114,6 +115,16 @@ jobs:
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push GIT tags
+        id: tag
+        if: steps.proceed-versioning.conclusion == 'success' && steps.create-release.conclusion == 'success'
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+          WITH_V: false
+          CUSTOM_TAG: ${{ steps.package-version.outputs.current-version}}
+          BRANCH_HISTORY: full
 
       - name: Generate full changelog
         if: steps.proceed-versioning.conclusion == 'success'
