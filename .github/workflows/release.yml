@@ -10,6 +10,11 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
+    # ✅ Prevent multiple concurrent release jobs from running
+    concurrency:
+      group: release-dev
+      cancel-in-progress: false
+
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BRANCH: main # or derive dynamically if needed
@@ -97,6 +102,16 @@ jobs:
         if: steps.proceed-versioning.conclusion == 'success'
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
+      - name: Push GIT tags
+        id: tag
+        if: steps.proceed-versioning.conclusion == 'success'
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: false
+          CUSTOM_TAG: ${{ steps.package-version.outputs.current-version}}
+          BRANCH_HISTORY: full
+
       - name: Generate changelog (partial)
         id: git-cliff-partial
         if: steps.proceed-versioning.conclusion == 'success'
@@ -116,16 +131,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push GIT tags
-        id: tag
-        if: steps.proceed-versioning.conclusion == 'success' && steps.create-release.conclusion == 'success'
-        uses: anothrNick/github-tag-action@v1
-        env:
-          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-          WITH_V: false
-          CUSTOM_TAG: ${{ steps.package-version.outputs.current-version}}
-          BRANCH_HISTORY: full
-
       - name: Generate full changelog
         if: steps.proceed-versioning.conclusion == 'success'
         uses: orhun/git-cliff-action@v4
@@ -144,6 +149,7 @@ jobs:
         shell: bash
 
       - name: Create pull request
+        id: create-pull-request
         if: steps.proceed-versioning.conclusion == 'success'
         uses: peter-evans/create-pull-request@v7
         with:
@@ -152,3 +158,11 @@ jobs:
           body: 'Automated version bump and changelog update.'
           base: ${{ env.BRANCH }}
           labels: deploy
+
+      - name: Enable auto-merge
+        if: steps.create-pull-request.outputs.pull-request-number
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
+          merge-method: squash
