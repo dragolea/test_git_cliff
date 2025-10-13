@@ -1,5 +1,16 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- *(readme)* Updated
+- *(readme)* Updated
+
+### ⚙️ Miscellaneous Tasks
+
+- *(bla)* Blaaaa
+- Bump version & update CHANGELOG.md
+## [1.0.2] - 2025-10-13
+
 ### ⚙️ Miscellaneous Tasks
 
 - *(releases)* Fixed cliff.toml configuration file and added this to .prettierignore
@@ -14,4 +25,3 @@
 - *(refactor)* Refactored the release action
 - *(refactor)* Refactored the release action
 - *(refactor)* Refactored the release action 2322
-- *(bla)* Blaaaa

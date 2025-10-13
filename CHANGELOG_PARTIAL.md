@@ -1,4 +1,4 @@
-## [unreleased]
+## [1.0.2] - 2025-10-13
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -14,4 +14,3 @@
 - *(refactor)* Refactored the release action
 - *(refactor)* Refactored the release action
 - *(refactor)* Refactored the release action 2322
-- *(bla)* Blaaaa
