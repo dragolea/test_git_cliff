@@ -169,5 +169,4 @@ jobs:
         uses: hmarr/auto-approve-action@v3
         with:
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.WRITE }}
+          github-token: ${{ secrets.WRITE }}
