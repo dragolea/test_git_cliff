@@ -32,30 +32,30 @@ jobs:
         shell: bash
 
       - name: Pull request merged
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: github.event.pull_request.merged == true && steps.proceed-versioning.conclusion == 'success'
         run: echo "Pull request was merged."
         shell: bash
 
       - name: Checkout code
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Install sync-mta-version
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true && inputs.ENABLE_SYNC_MTA == 'true'
         run: npm install -g @dxfrontier/sync-mta-version
         shell: bash
 
       - name: Determine version bump type
         id: version-bump-type
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         env:
           IS_PATCH_FOUND: "${{ contains(github.event.pull_request.labels.*.name, 'version: patch') }}"
           IS_MINOR_FOUND: "${{ contains(github.event.pull_request.labels.*.name, 'version: minor') }}"
@@ -76,12 +76,12 @@ jobs:
         shell: bash
 
       - name: Bump version to package.json
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         run: npm version ${{ env.VERSION_BUMP }} --no-git-tag-version
         shell: bash
 
       - name: Apply version bump to package.json, /app/*/package.json, /app/*/webapp/manifest.json
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true && inputs.ENABLE_SYNC_MTA == 'true'
         run: |
           if [ -f "mta.yaml" ]; then
             echo "mta.yaml found."
@@ -99,22 +99,22 @@ jobs:
 
       - name: Get version
         id: package-version
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: martinbeentjes/npm-get-version-action@v1.3.1
 
       - name: Push GIT tags
         id: tag
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: anothrNick/github-tag-action@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
           WITH_V: false
           CUSTOM_TAG: ${{ steps.package-version.outputs.current-version}}
           BRANCH_HISTORY: full
 
       - name: Generate changelog (partial)
         id: git-cliff-partial
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
@@ -122,57 +122,68 @@ jobs:
 
       - name: Create GitHub release
         id: create-release
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: softprops/action-gh-release@v2
         with:
           body: ${{ steps.git-cliff-partial.outputs.content }}
-          tag_name: ${{ steps.git-cliff-partial.outputs.version }}
+          tag_name: ${{ steps.tag.outputs.new_tag }}
           make_latest: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
 
       - name: Remove partial changelog
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         run: rm -f CHANGELOG_PARTIAL.md
         shell: bash
 
       - name: Generate full changelog
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
           args: --verbose -o CHANGELOG.md
 
       - name: Commit version bump and changelog
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package*.json CHANGELOG.md mta.yaml app/**/manifest.json || true
+          # Safely stage only files that exist; avoid fatal pathspec errors
+          shopt -s nullglob globstar
+          # Stage package files if present
+          pkg_files=(package*.json)
+          if [ ${#pkg_files[@]} -gt 0 ]; then git add "${pkg_files[@]}"; fi
+          # Stage optional files if they exist
+          [ -f CHANGELOG.md ] && git add CHANGELOG.md || true
+          [ -f mta.yaml ] && git add mta.yaml || true
+          manifest_matches=(app/**/manifest.json)
+          if [ ${#manifest_matches[@]} -gt 0 ]; then git add "${manifest_matches[@]}"; fi
           git commit -m "ci: bump version & update changelog" || echo "No changes to commit"
-          git push origin HEAD:${{ env.BRANCH }}
+          git push origin HEAD:feature/version-bump
         shell: bash
 
       - name: Create pull request
         id: create-pull-request
-        if: steps.proceed-versioning.conclusion == 'success'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ inputs.WRITE_ACCESS_TOKEN || inputs.GITHUB_TOKEN }}
           branch: feature/version-bump
           commit-message: 'ci: bump version & update CHANGELOG.md'
           body: 'Automated version bump and changelog update.'
-          base: ${{ env.BRANCH }}
+          base: ${{ inputs.BRANCH }}
           labels: deploy
 
       - name: Auto approve PR (Action)
-        if: steps.create-pull-request.outputs.pull-request-operation == 'created'
+        if: steps.create-pull-request.outputs.pull-request-operation == 'created' && inputs.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         uses: hmarr/auto-approve-action@v3
         with:
-          github-token: ${{ secrets.WRITE }} # or ${{ secrets.PAT_TOKEN }}
+          github-token: ${{ inputs.WRITE_ACCESS_TOKEN || inputs.GITHUB_TOKEN }}
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
 
       - name: Enable auto-merge
-        if: steps.create-pull-request.outputs.pull-request-number
+        if: steps.create-pull-request.outputs.pull-request-number && inputs.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         run: gh pr merge ${{ steps.create-pull-request.outputs.pull-request-number }} --auto --merge
         env:
-          GH_TOKEN: ${{ secrets.WRITE }} # or ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ inputs.WRITE_ACCESS_TOKEN || inputs.GITHUB_TOKEN }}
+        shell: bash
