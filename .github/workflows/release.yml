@@ -162,7 +162,9 @@ jobs:
           manifest_matches=(app/**/manifest.json)
           if [ ${#manifest_matches[@]} -gt 0 ]; then git add "${manifest_matches[@]}"; fi
           git commit -m "ci: bump version & update changelog" || echo "No changes to commit"
-          git push origin HEAD:feature/version-bump
+          # Make push resilient to remote updates on the target branch
+          git fetch origin feature/version-bump || true
+          git push --force-with-lease origin HEAD:feature/version-bump
         shell: bash
 
       - name: Create pull request
@@ -171,7 +173,6 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
-          branch: feature/version-bump
           commit-message: 'ci: bump version & update CHANGELOG.md'
           body: 'Automated version bump and changelog update.'
           base: ${{ env.BRANCH }}
