@@ -18,6 +18,9 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BRANCH: main # or derive dynamically if needed
+      WRITE_ACCESS_TOKEN: ${{ secrets.GITHUB_WRITE_ACCESS }}
+      ENABLE_AUTO_MERGE: 'true'
+      ENABLE_SYNC_MTA: 'true'
 
     steps:
       - name: Check labels to proceed versioning
@@ -49,7 +52,7 @@ jobs:
           node-version: '20'
 
       - name: Install sync-mta-version
-        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true && inputs.ENABLE_SYNC_MTA == 'true'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true && env.ENABLE_SYNC_MTA == 'true'
         run: npm install -g @dxfrontier/sync-mta-version
         shell: bash
 
@@ -81,7 +84,7 @@ jobs:
         shell: bash
 
       - name: Apply version bump to package.json, /app/*/package.json, /app/*/webapp/manifest.json
-        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true && inputs.ENABLE_SYNC_MTA == 'true'
+        if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true && env.ENABLE_SYNC_MTA == 'true'
         run: |
           if [ -f "mta.yaml" ]; then
             echo "mta.yaml found."
@@ -171,18 +174,18 @@ jobs:
           branch: feature/version-bump
           commit-message: 'ci: bump version & update CHANGELOG.md'
           body: 'Automated version bump and changelog update.'
-          base: ${{ inputs.BRANCH }}
+          base: ${{ env.BRANCH }}
           labels: deploy
 
       - name: Auto approve PR (Action)
-        if: steps.create-pull-request.outputs.pull-request-operation == 'created' && inputs.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
+        if: steps.create-pull-request.outputs.pull-request-operation == 'created' && env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         uses: hmarr/auto-approve-action@v3
         with:
           github-token: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
 
       - name: Enable auto-merge
-        if: steps.create-pull-request.outputs.pull-request-number && inputs.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
+        if: steps.create-pull-request.outputs.pull-request-number && env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         run: gh pr merge ${{ steps.create-pull-request.outputs.pull-request-number }} --auto --merge
         env:
           GH_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
