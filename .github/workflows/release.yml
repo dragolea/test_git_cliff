@@ -107,7 +107,7 @@ jobs:
         if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: anothrNick/github-tag-action@v1
         env:
-          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WITH_V: false
           CUSTOM_TAG: ${{ steps.package-version.outputs.current-version}}
           BRANCH_HISTORY: full
@@ -129,7 +129,7 @@ jobs:
           tag_name: ${{ steps.tag.outputs.new_tag }}
           make_latest: true
         env:
-          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Remove partial changelog
         if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
@@ -167,7 +167,7 @@ jobs:
         if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ inputs.WRITE_ACCESS_TOKEN || inputs.GITHUB_TOKEN }}
+          token: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
           branch: feature/version-bump
           commit-message: 'ci: bump version & update CHANGELOG.md'
           body: 'Automated version bump and changelog update.'
@@ -178,12 +178,12 @@ jobs:
         if: steps.create-pull-request.outputs.pull-request-operation == 'created' && inputs.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         uses: hmarr/auto-approve-action@v3
         with:
-          github-token: ${{ inputs.WRITE_ACCESS_TOKEN || inputs.GITHUB_TOKEN }}
+          github-token: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
 
       - name: Enable auto-merge
         if: steps.create-pull-request.outputs.pull-request-number && inputs.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         run: gh pr merge ${{ steps.create-pull-request.outputs.pull-request-number }} --auto --merge
         env:
-          GH_TOKEN: ${{ inputs.WRITE_ACCESS_TOKEN || inputs.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
         shell: bash
