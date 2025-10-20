@@ -199,3 +199,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
+
+      - name: Delete PR branch if merged
+        if: steps.create-pull-request.outputs.pull-request-number && env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
+        run: |
+          PR_NUMBER=${{ steps.create-pull-request.outputs.pull-request-number }}
+          BRANCH=${{ steps.create-pull-request.outputs.pull-request-branch }}
+          if [ -z "$BRANCH" ]; then
+            BRANCH=$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)
+          fi
+          if gh pr view "$PR_NUMBER" --json merged --jq '.merged' | grep -q true; then
+            echo "Deleting branch $BRANCH"
+            git push origin --delete "$BRANCH" || gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$BRANCH" || true
+          else
+            echo "PR not merged yet; skipping branch delete"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
