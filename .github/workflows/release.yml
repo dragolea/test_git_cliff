@@ -179,14 +179,14 @@ jobs:
           labels: deploy
 
       - name: Auto approve PR (Action)
-        if: steps.create-pull-request.outputs.pull-request-operation == 'created' && env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
+        if: env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         uses: hmarr/auto-approve-action@v3
         with:
           github-token: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
 
       - name: Enable auto-merge
-        if: steps.create-pull-request.outputs.pull-request-number && env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
+        if: env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         run: gh pr merge ${{ steps.create-pull-request.outputs.pull-request-number }} --auto --merge
         env:
           GH_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
