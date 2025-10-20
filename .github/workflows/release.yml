@@ -14,6 +14,10 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
+    permissions:
+      pull-requests: write
+      contents: write
+
     # ✅ Prevent multiple concurrent release jobs from running
     concurrency:
       group: release-dev
@@ -183,15 +187,15 @@ jobs:
           labels: deploy
 
       - name: Auto approve PR (Action)
-        if: env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
+        if: steps.create-pull-request.outputs.pull-request-number && env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         uses: hmarr/auto-approve-action@v3
         with:
           github-token: ${{ secrets.WRITE_ACCESS_TOKEN }}
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
 
       - name: Enable auto-merge
-        if: env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
+        if: steps.create-pull-request.outputs.pull-request-number && env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         run: gh pr merge ${{ steps.create-pull-request.outputs.pull-request-number }} --auto --merge
         env:
-          GH_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
