@@ -5,6 +5,10 @@ on:
     types: [closed]
     branches: [main] # change to your target branch if needed
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   release:
     if: github.event.pull_request.merged == true
@@ -20,7 +24,7 @@ jobs:
       BRANCH: main # or derive dynamically if needed
       WRITE_ACCESS_TOKEN: ${{ secrets.GITHUB_WRITE_ACCESS }}
       ENABLE_AUTO_MERGE: 'true'
-      ENABLE_SYNC_MTA: 'true'
+      ENABLE_SYNC_MTA: 'false'
 
     steps:
       - name: Check labels to proceed versioning
