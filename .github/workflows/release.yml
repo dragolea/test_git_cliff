@@ -176,7 +176,7 @@ jobs:
         if: steps.proceed-versioning.conclusion == 'success' && github.event.pull_request.merged == true
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'ci: bump version & update CHANGELOG.md'
           body: 'Automated version bump and changelog update.'
           base: ${{ env.BRANCH }}
@@ -186,12 +186,12 @@ jobs:
         if: env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         uses: hmarr/auto-approve-action@v3
         with:
-          github-token: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.WRITE_ACCESS_TOKEN }}
           pull-request-number: ${{ steps.create-pull-request.outputs.pull-request-number }}
 
       - name: Enable auto-merge
         if: env.ENABLE_AUTO_MERGE == 'true' && github.event.pull_request.merged == true
         run: gh pr merge ${{ steps.create-pull-request.outputs.pull-request-number }} --auto --merge
         env:
-          GH_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.WRITE_ACCESS_TOKEN }}
         shell: bash
